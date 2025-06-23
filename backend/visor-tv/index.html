@@ -26,10 +26,10 @@
     let currentIndex = 0;
 
     // Cargar lista de videos
-    fetch("/list")
+    fetch("/tv/list")
       .then(res => res.json())
       .then(files => {
-        playlist = files.map(f => `/videos/${f}`);
+        playlist = files.map(f => `/tv/videos/${f}`);
         if (playlist.length > 0) {
           videoPlayer.src = playlist[0];
           videoPlayer.play();

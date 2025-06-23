@@ -8,7 +8,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // ✅ Carpeta de disco persistente en Render
-const VIDEO_DIR = '/mnt/data/videos';
+const VIDEO_DIR = path.join(__dirname, 'videos');
 
 // Crear carpeta si no existe
 if (!fs.existsSync(VIDEO_DIR)) {
@@ -16,13 +16,16 @@ if (!fs.existsSync(VIDEO_DIR)) {
 }
 
 // Servir visor web (TV) desde visor-tv/
-app.use('/visor', express.static(path.join(__dirname, 'visor-tv')));
+const base = '/tv';
 
+// Servir archivos de video públicamente
+app.use(`${base}/videos`, express.static(VIDEO_DIR));
+app.use(`${base}/visor`, express.static(path.join(__dirname, 'visor-tv')));
 // Servir panel de administración desde views/
-app.use('/', express.static(path.join(__dirname, 'views')));
+app.use(`${base}/`, express.static(path.join(__dirname, 'views')));
 
 // Ruta para obtener lista de videos
-app.get('/list', (req, res) => {
+app.get(`${base}/list`, (req, res) => {
   fs.readdir(VIDEO_DIR, (err, files) => {
     if (err) return res.status(500).send('Error al listar videos');
     const mp4Files = files.filter(f => f.endsWith('.mp4'));
@@ -48,10 +51,11 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 // Ruta para subir un video
-app.post('/upload', upload.single('video'), (req, res) => {
+app.post(`${base}/upload`, upload.single('video'), (req, res) => {
   if (!req.file) return res.status(400).send('No se subió ningún archivo.');
   res.send('✅ Video subido correctamente.');
 });
+
 
 // Iniciar servidor
 app.listen(PORT, () => {

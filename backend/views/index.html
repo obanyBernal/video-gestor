@@ -1,140 +1,98 @@
-<!-- views/index.html -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Panel de Administración - Carga de Videos</title>
+  <title>Panel de Administración de Videos</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
-      padding: 2rem;
+      font-family: sans-serif;
+      padding: 20px;
       background: #f4f4f4;
     }
-
-    h1 {
-      color: #333;
-    }
-
-    form {
-      margin-bottom: 2rem;
-    }
-
-    input[type="file"] {
-      margin-bottom: 1rem;
-    }
-
-    #status {
-      margin-top: 1rem;
-      font-weight: bold;
-    }
-
-    ul {
-      margin-top: 2rem;
-    }
-
-    li {
-      margin-bottom: 5px;
-    }
-
-    video {
-      width: 300px;
+    #progressContainer {
+      width: 100%;
+      background: #ddd;
       margin-top: 10px;
-      display: block;
+      border-radius: 5px;
+      overflow: hidden;
+    }
+    #progressBar {
+      width: 0%;
+      height: 20px;
+      background: #28a745;
+      transition: width 0.3s ease;
+    }
+    video {
+      margin-top: 15px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
     }
   </style>
 </head>
 <body>
-  <h1>🎬 Panel de Administración de Videos</h1>
 
-  <form id="uploadForm">
-    <input type="file" name="video" accept="video/mp4" required />
-    <br />
-    <button type="submit">Subir Video</button>
-    <div id="status"></div>
-  </form>
+  <h1>Subir Video</h1>
+  <input type="file" id="videoFile" accept="video/mp4" />
+  <button onclick="uploadVideo()">Subir</button>
 
-  <h2>📁 Videos disponibles:</h2>
-  <ul id="videoList"></ul>
+  <div id="progressContainer">
+    <div id="progressBar"></div>
+  </div>
+
+  <h2>Videos Disponibles</h2>
+  <div id="videoList"></div>
 
   <script>
-    const form = document.getElementById('uploadForm');
-    const status = document.getElementById('status');
-    const videoList = document.getElementById('videoList');
-
-    // Cargar lista de videos
-    function loadVideos() {
-      fetch('/list')
-        .then(res => res.json())
-        .then(files => {
-          videoList.innerHTML = '';
-          files.forEach(file => {
-            const li = document.createElement('li');
-            li.textContent = file;
-            const video = document.createElement('video');
-            video.src = `/videos/${file}`;
-            video.controls = true;
-            li.appendChild(video);
-            videoList.appendChild(li);
-          });
-        });
-    }
-
-    loadVideos();
-
-    // Manejar envío del formulario
-    form.addEventListener('submit', (e) => {
-      e.preventDefault();
-
-      const fileInput = form.querySelector('input[type="file"]');
+    function uploadVideo() {
+      const fileInput = document.getElementById('videoFile');
       const file = fileInput.files[0];
-      if (!file) return;
+      if (!file) return alert('Selecciona un video');
 
       const formData = new FormData();
       formData.append('video', file);
 
-      fetch('/upload', {
-        method: 'POST',
-        body: formData
-      })
-      .then(res => res.text())
-      .then(msg => {
-        status.textContent = msg;
-        fileInput.value = '';
-        loadVideos();
-      })
-      .catch(err => {
-        status.textContent = 'Error al subir el video';
-        console.error(err);
-      });
-    });
-  </script>
-  <div id="sync-status" style="margin-top: 2rem; color: #555;"></div>
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/tv/upload', true);
 
-<script>
-  const localServerURL = "http://192.168.1.100:3000/local-sync-status"; // Cambia a la IP real de tu red
-
-  function checkLocalSync() {
-    fetch(localServerURL)
-      .then(res => res.text())
-      .then(timestamp => {
-        const lastDate = new Date(timestamp);
-        const now = new Date();
-        const diffMin = Math.round((now - lastDate) / 60000);
-
-        const statusEl = document.getElementById('sync-status');
-        if (diffMin <= 60) {
-          statusEl.innerHTML = `🟢 Servidor local sincronizado hace ${diffMin} minutos`;
-        } else {
-          statusEl.innerHTML = `🔴 Última sincronización fue hace más de ${diffMin} minutos`;
+      xhr.upload.onprogress = function (e) {
+        if (e.lengthComputable) {
+          const percent = (e.loaded / e.total) * 100;
+          document.getElementById('progressBar').style.width = percent + '%';
         }
-      })
-      .catch(err => {
-        document.getElementById('sync-status').innerHTML = `🔴 No se pudo contactar al servidor local`;
-      });
-  }
+      };
 
-  checkLocalSync();
-</script>
+      xhr.onload = function () {
+        if (xhr.status === 200) {
+          alert('✅ Video subido correctamente');
+          document.getElementById('progressBar').style.width = '0%';
+          fileInput.value = '';
+          loadVideoList();
+        } else {
+          alert('❌ Error al subir el video');
+        }
+      };
 
+      xhr.send(formData);
+    }
+
+    function loadVideoList() {
+      fetch('/tv/list')
+        .then(res => res.json())
+        .then(files => {
+          const container = document.getElementById('videoList');
+          container.innerHTML = '';
+          files.forEach(file => {
+            const video = document.createElement('video');
+            video.src = `/tv/videos/${file}`;
+            video.controls = true;
+            video.width = 300;
+            container.appendChild(video);
+          });
+        });
+    }
+
+    // Cargar lista al iniciar
+    window.onload = loadVideoList;
+  </script>
 </body>
 </html>
