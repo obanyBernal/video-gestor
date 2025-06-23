@@ -1,0 +1,16 @@
+{
+  "name": "video-gestor-funerales",
+  "version": "1.0.0",
+  "description": "Sistema de gestión de video para pantallas en Funerales Guatemala",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=16"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "multer": "^1.4.5"
+  }
+}

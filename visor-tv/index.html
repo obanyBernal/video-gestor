@@ -1,0 +1,47 @@
+<!-- visor-tv/index.html -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Visor de Pantalla</title>
+  <style>
+    body {
+      margin: 0;
+      background-color: black;
+    }
+    video {
+      width: 100vw;
+      height: 100vh;
+      object-fit: cover;
+    }
+  </style>
+</head>
+<body>
+  <video id="player" controls autoplay muted></video>
+
+  <script>
+    const videoPlayer = document.getElementById("player");
+    let playlist = [];
+    let currentIndex = 0;
+
+    // Cargar lista de videos
+    fetch("/list")
+      .then(res => res.json())
+      .then(files => {
+        playlist = files.map(f => `/videos/${f}`);
+        if (playlist.length > 0) {
+          videoPlayer.src = playlist[0];
+          videoPlayer.play();
+        }
+      });
+
+    // Reproducir siguiente al terminar
+    videoPlayer.addEventListener("ended", () => {
+      currentIndex = (currentIndex + 1) % playlist.length;
+      videoPlayer.src = playlist[currentIndex];
+      videoPlayer.play();
+    });
+  </script>
+</body>
+</html>
