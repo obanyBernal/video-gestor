@@ -1,4 +1,4 @@
-// server.js
+// backend/server.js
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
@@ -7,19 +7,30 @@ const fs = require('fs');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 📁 Carpeta persistente de Render
+// ✅ Carpeta de disco persistente en Render
 const VIDEO_DIR = '/mnt/data/videos';
 
-// Crear la carpeta si no existe
+// Crear carpeta si no existe
 if (!fs.existsSync(VIDEO_DIR)) {
   fs.mkdirSync(VIDEO_DIR, { recursive: true });
 }
 
-// Middleware para servir visor y panel
-app.use('/visor', express.static(path.join(__dirname, '../visor-tv')));
+// Servir visor web (TV) desde visor-tv/
+app.use('/visor', express.static(path.join(__dirname, 'visor-tv')));
+
+// Servir panel de administración desde views/
 app.use('/', express.static(path.join(__dirname, 'views')));
 
-// Servir videos individuales por nombre
+// Ruta para obtener lista de videos
+app.get('/list', (req, res) => {
+  fs.readdir(VIDEO_DIR, (err, files) => {
+    if (err) return res.status(500).send('Error al listar videos');
+    const mp4Files = files.filter(f => f.endsWith('.mp4'));
+    res.json(mp4Files);
+  });
+});
+
+// Servir archivos de video individuales
 app.get('/videos/:filename', (req, res) => {
   const filePath = path.join(VIDEO_DIR, req.params.filename);
   if (fs.existsSync(filePath)) {
@@ -29,22 +40,14 @@ app.get('/videos/:filename', (req, res) => {
   }
 });
 
-// Obtener lista de videos
-app.get('/list', (req, res) => {
-  fs.readdir(VIDEO_DIR, (err, files) => {
-    if (err) return res.status(500).send('Error al listar videos.');
-    const mp4s = files.filter(f => f.endsWith('.mp4'));
-    res.json(mp4s);
-  });
-});
-
-// Subida de videos
+// Configurar Multer para subir videos
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, VIDEO_DIR),
   filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname)
 });
 const upload = multer({ storage });
 
+// Ruta para subir un video
 app.post('/upload', upload.single('video'), (req, res) => {
   if (!req.file) return res.status(400).send('No se subió ningún archivo.');
   res.send('✅ Video subido correctamente.');
@@ -52,5 +55,5 @@ app.post('/upload', upload.single('video'), (req, res) => {
 
 // Iniciar servidor
 app.listen(PORT, () => {
-  console.log(`✅ Servidor activo en http://localhost:${PORT}`);
+  console.log(`🚀 Servidor escuchando en http://localhost:${PORT}`);
 });
