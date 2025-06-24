@@ -74,9 +74,15 @@
       let currentIndex = 0;
 
       function playVideo(index) {
-        loadingImage.style.display = "block";
-        videoPlayer.src = playlist[index];
-        videoPlayer.load();
+        if (!playlist[index]) return;
+
+        videoPlayer.pause(); // ✋ Detiene cualquier reproducción actual
+        videoPlayer.removeAttribute("src"); // 🧹 Elimina fuente actual para limpiar buffers
+        videoPlayer.load(); // 🔄 Forzar limpieza interna
+        loadingImage.style.display = "block"; // Mostrar imagen de espera
+
+        videoPlayer.src = playlist[index]; // 🔁 Asignar nuevo video
+        currentIndex = index; // Guardar índice actual
       }
 
       videoPlayer.addEventListener("loadeddata", () => {
