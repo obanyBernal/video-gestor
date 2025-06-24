@@ -1,47 +1,135 @@
 <!-- visor-tv/index.html -->
 <!DOCTYPE html>
 <html lang="es">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Visor de Pantalla</title>
-  <style>
-    body {
-      margin: 0;
-      background-color: black;
-    }
-    video {
-      width: 100vw;
-      height: 100vh;
-      object-fit: cover;
-    }
-  </style>
-</head>
-<body>
-  <video id="player" controls autoplay muted></video>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Visor de Pantalla</title>
+    <style>
+      body {
+        margin: 0;
+        background-color: black;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        background: black;
+      }
 
-  <script>
-    const videoPlayer = document.getElementById("player");
-    let playlist = [];
-    let currentIndex = 0;
+      .container {
+        position: relative;
+        width: 100vw;
+        height: 60vh;
+        overflow: hidden;
+      }
+      #loading {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        object-fit: cover;
+        z-index: 1;
+      }
+      video {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        object-fit: cover;
+        z-index: 2;
+      }
+      #fullscreenBtn {
+        position: absolute;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: rgba(255, 255, 255, 0.2);
+        color: white;
+        border: 1px solid white;
+        border-radius: 10px;
+        padding: 10px 20px;
+        font-size: 18px;
+        cursor: pointer;
+        z-index: 3;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <img id="loading" src="/tv/visor/loading.png" alt="Cargando..." />
+      <video id="player" autoplay muted></video>
+      <button id="fullscreenBtn">⛶ Pantalla Completa</button>
+    </div>
 
-    // Cargar lista de videos
-    fetch("/tv/list")
-      .then(res => res.json())
-      .then(files => {
-        playlist = files.map(f => `/tv/videos/${f}`);
-        if (playlist.length > 0) {
-          videoPlayer.src = playlist[0];
-          videoPlayer.play();
+    <script>
+      const videoPlayer = document.getElementById("player");
+      const loadingImage = document.getElementById("loading");
+      const fullscreenBtn = document.getElementById("fullscreenBtn");
+      let playlist = [];
+      let currentIndex = 0;
+
+      function playVideo(index) {
+        loadingImage.style.display = "block";
+        videoPlayer.src = playlist[index];
+        videoPlayer.load();
+      }
+
+      videoPlayer.addEventListener("loadeddata", () => {
+        loadingImage.style.display = "none";
+        videoPlayer.play();
+      });
+
+      videoPlayer.addEventListener("ended", () => {
+        if (playlist.length === 0) return;
+
+        currentIndex++;
+        if (currentIndex >= playlist.length) {
+          currentIndex = 0; // Reiniciar la cola
+        }
+
+        playVideo(currentIndex);
+      });
+
+      videoPlayer.addEventListener("error", () => {
+        console.warn("⚠️ Error al cargar el video. Saltando al siguiente...");
+        currentIndex++;
+        if (currentIndex >= playlist.length) currentIndex = 0;
+        playVideo(currentIndex);
+      });
+
+      fetch("/tv/list")
+        .then((res) => res.json())
+        .then((files) => {
+          playlist = files.map((f) => `/tv/videos/${f}`);
+          if (playlist.length > 0) {
+            currentIndex = Math.floor(Math.random() * playlist.length); // 👈 inicia aleatoriamente
+            playVideo(currentIndex);
+          }
+        });
+
+      fullscreenBtn.addEventListener("click", () => {
+        if (!document.fullscreenElement) {
+          videoPlayer.muted = false; // ✅ Activa sonido al entrar
+          document.querySelector(".container").requestFullscreen();
         }
       });
 
-    // Reproducir siguiente al terminar
-    videoPlayer.addEventListener("ended", () => {
-      currentIndex = (currentIndex + 1) % playlist.length;
-      videoPlayer.src = playlist[currentIndex];
-      videoPlayer.play();
-    });
-  </script>
-</body>
+      // Mostrar controles fuera de fullscreen, ocultarlos dentro
+      document.addEventListener("fullscreenchange", () => {
+        const isFullscreen = !!document.fullscreenElement;
+        fullscreenBtn.style.display = isFullscreen ? "none" : "block";
+
+        if (isFullscreen) {
+          videoPlayer.removeAttribute("controls");
+        } else {
+          videoPlayer.setAttribute("controls", "true");
+        }
+      });
+    </script>
+  </body>
 </html>
