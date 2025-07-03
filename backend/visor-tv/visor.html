@@ -1,4 +1,4 @@
-<!-- visor-tv/index.html -->
+<!-- visor-tv/visor.html -->
 <!DOCTYPE html>
 <html lang="es">
   <head>
@@ -76,13 +76,13 @@
       function playVideo(index) {
         if (!playlist[index]) return;
 
-        videoPlayer.pause(); // ✋ Detiene cualquier reproducción actual
-        videoPlayer.removeAttribute("src"); // 🧹 Elimina fuente actual para limpiar buffers
-        videoPlayer.load(); // 🔄 Forzar limpieza interna
-        loadingImage.style.display = "block"; // Mostrar imagen de espera
+        videoPlayer.pause();
+        videoPlayer.removeAttribute("src");
+        videoPlayer.load();
+        loadingImage.style.display = "block";
 
-        videoPlayer.src = playlist[index]; // 🔁 Asignar nuevo video
-        currentIndex = index; // Guardar índice actual
+        videoPlayer.src = playlist[index];
+        currentIndex = index;
       }
 
       videoPlayer.addEventListener("loadeddata", () => {
@@ -92,12 +92,8 @@
 
       videoPlayer.addEventListener("ended", () => {
         if (playlist.length === 0) return;
-
         currentIndex++;
-        if (currentIndex >= playlist.length) {
-          currentIndex = 0; // Reiniciar la cola
-        }
-
+        if (currentIndex >= playlist.length) currentIndex = 0;
         playVideo(currentIndex);
       });
 
@@ -108,24 +104,33 @@
         playVideo(currentIndex);
       });
 
-      fetch("/tv/list")
+      // 🔁 SOPORTE MULTIPANTALLA
+      const params = new URLSearchParams(window.location.search);
+      const pantalla = params.get("pantalla")?.trim() || "pantalla1";
+      console.log("Pantalla detectada:", pantalla);
+
+      fetch(`/tv/list/${pantalla}`)
         .then((res) => res.json())
         .then((files) => {
-          playlist = files.map((f) => `/tv/videos/${f}`);
+          playlist = files.map((f) => `/tv/videos/${pantalla}/${f}`);
           if (playlist.length > 0) {
-            currentIndex = Math.floor(Math.random() * playlist.length); // 👈 inicia aleatoriamente
+            currentIndex = Math.floor(Math.random() * playlist.length);
             playVideo(currentIndex);
+          } else {
+            console.warn("No hay videos disponibles para esta pantalla.");
           }
+        })
+        .catch((err) => {
+          console.error("Error al obtener la lista de videos:", err);
         });
 
       fullscreenBtn.addEventListener("click", () => {
         if (!document.fullscreenElement) {
-          videoPlayer.muted = false; // ✅ Activa sonido al entrar
+          videoPlayer.muted = false;
           document.querySelector(".container").requestFullscreen();
         }
       });
 
-      // Mostrar controles fuera de fullscreen, ocultarlos dentro
       document.addEventListener("fullscreenchange", () => {
         const isFullscreen = !!document.fullscreenElement;
         fullscreenBtn.style.display = isFullscreen ? "none" : "block";

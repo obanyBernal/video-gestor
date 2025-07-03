@@ -6,7 +6,7 @@ const fs = require('fs');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ✅ Carpeta de disco persistente
+// ✅ Carpeta base de videos
 const VIDEO_DIR = path.join(__dirname, 'videos');
 
 // Crear carpeta si no existe
@@ -14,39 +14,41 @@ if (!fs.existsSync(VIDEO_DIR)) {
   fs.mkdirSync(VIDEO_DIR, { recursive: true });
 }
 
-// Servir visor web (TV) desde visor-tv/
+// ✅ Rutas estáticas
 const base = '/tv';
-app.use(`${base}/videos`, express.static(VIDEO_DIR));
 app.use(`${base}/visor`, express.static(path.join(__dirname, 'visor-tv')));
 app.use(`${base}/`, express.static(path.join(__dirname, 'views')));
 
-// 📂 Obtener lista de videos
-let cachedList = [];
-let lastCacheTime = 0;
-const CACHE_DURATION = 60000; // 60 segundos
+// 📂 API: Obtener lista de videos por pantalla
+app.get(`${base}/list/:pantalla`, (req, res) => {
+  const pantalla = req.params.pantalla;
+  const pantallaDir = path.join(VIDEO_DIR, pantalla);
 
-app.get(`${base}/list`, (req, res) => {
-  const now = Date.now();
-
-  if (now - lastCacheTime < CACHE_DURATION && cachedList.length > 0) {
-    return res.json(cachedList); // 🧠 Devuelve desde cache
-  }
-
-  fs.readdir(VIDEO_DIR, (err, files) => {
-    if (err) return res.status(500).send('Error al listar videos');
+  fs.readdir(pantallaDir, (err, files) => {
+    if (err) return res.status(500).json([]);
     const mp4Files = files.filter(f => f.endsWith('.mp4'));
-
-    cachedList = mp4Files;
-    lastCacheTime = now;
-
-    res.json(mp4Files); // 📦 Actualiza cache
+    res.json(mp4Files);
   });
 });
 
 
-// 🎥 Servir videos con soporte de streaming
-app.get('/videos/:filename', (req, res) => {
-  const filePath = path.join(VIDEO_DIR, req.params.filename);
+// ⬆️ Subida de videos a la raíz general (no a pantalla específica)
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, VIDEO_DIR),
+  filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname)
+});
+const upload = multer({ storage });
+
+app.post(`${base}/upload`, upload.single('video'), (req, res) => {
+  if (!req.file) return res.status(400).send('No se subió ningún archivo.');
+  res.send('✅ Video subido correctamente.');
+});
+
+// 🎥 Streaming de videos desde subcarpetas: pantalla1, pantalla2, etc.
+app.get('/tv/videos/:pantalla/:filename', (req, res) => {
+  const { pantalla, filename } = req.params;
+  const filePath = path.join(VIDEO_DIR, pantalla, filename);
+
   if (!fs.existsSync(filePath)) {
     return res.status(404).send('Video no encontrado');
   }
@@ -84,17 +86,22 @@ app.get('/videos/:filename', (req, res) => {
     stream.pipe(res);
   }
 });
+// 🐞 Ruta de depuración para listar videos detectados
+app.get('/tv/debug', (req, res) => {
+  const resultados = {};
+  const carpetas = ['pantalla1', 'pantalla2'];
 
-// ⬆️ Subir videos con Multer
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, VIDEO_DIR),
-  filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname)
-});
-const upload = multer({ storage });
+  carpetas.forEach((pantalla) => {
+    const dir = path.join(__dirname, 'videos', pantalla);
+    try {
+      const archivos = fs.readdirSync(dir).filter(f => f.endsWith('.mp4'));
+      resultados[pantalla] = archivos;
+    } catch (err) {
+      resultados[pantalla] = `❌ Error: ${err.message}`;
+    }
+  });
 
-app.post(`${base}/upload`, upload.single('video'), (req, res) => {
-  if (!req.file) return res.status(400).send('No se subió ningún archivo.');
-  res.send('✅ Video subido correctamente.');
+  res.json(resultados);
 });
 
 // 🚀 Iniciar servidor
